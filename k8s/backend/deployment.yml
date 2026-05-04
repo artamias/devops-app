@@ -4,7 +4,7 @@ metadata:
   name: backend
   namespace: proshop
 spec:
-  replicas: 3           # menggantikan backend-1 dan backend-2 di compose
+  replicas: 3
   selector:
     matchLabels:
       app: backend
@@ -44,7 +44,7 @@ spec:
                 secretKeyRef:
                   name: proshop-secret
                   key: JWT_SECRET
-          readinessProbe:          # menggantikan depends_on
+          readinessProbe:
             httpGet:
               path: /api/products
               port: 5000
