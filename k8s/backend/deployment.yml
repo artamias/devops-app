@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: backend
-          image: backend-proshop:v1
+          image: artami/backend-proshop:v1
           ports:
             - containerPort: 5000
           env:
