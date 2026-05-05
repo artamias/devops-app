@@ -6,4 +6,4 @@ metadata:
 data:
   NODE_ENV: "production"
   PORT: "5000"
-  CORS_ORIGIN: "192.168.136.128"
+  CORS_ORIGIN: "http://192.168.136.128"
