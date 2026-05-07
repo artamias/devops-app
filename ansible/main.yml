@@ -1,0 +1,173 @@
+---
+- name: Setup MicroK8s, kubectl, dan docker
+  hosts: all
+  become: true
+  vars:
+    target_user: "staging"  #ganti target username server
+    #kubernetes and docker configuration
+    kubectl_version: "https://dl.k8s.io/release/stable.txt" #versi stable
+    docker_gpg_url: "https://download.docker.com/linux/ubuntu/gpg"
+    docker_gpg_path: "/etc/apt/keyrings/docker.asc"
+    docker_repo_url: "https://download.docker.com/linux/ubuntu"
+    docker_packages:
+      - ca-certificates
+      - curl
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - docker-buildx-plugin
+      - docker-compose-plugin
+
+  tasks:
+
+    # Install Microk8s
+    - name: Install microk8s via snap (classic)
+      community.general.snap:
+        name: microk8s
+        classic: true
+        state: present
+
+    - name: Tunggu microk8s status ready
+      command: microk8s status --wait-ready
+      changed_when: false
+      timeout: 120
+
+    - name: Tambah {{ target_user }} ke group microk8s
+      user:
+        name: "{{ target_user }}"
+        groups: microk8s
+        append: true
+
+    - name: Buat direktori .kube untuk {{ target_user }}
+      file:
+        path: "/home/{{ target_user }}/.kube"
+        state: directory
+        owner: "{{ target_user }}"
+        group: "{{ target_user }}"
+        mode: "0755"
+
+    - name: Set kepemilikan .kube secara rekursif
+      file:
+        path: "/home/{{ target_user }}/.kube"
+        owner: "{{ target_user }}"
+        group: "{{ target_user }}"
+        recurse: true
+
+    - name: Export microk8s config
+      command: microk8s config
+      register: mk8s_config
+      changed_when: false
+
+    - name: Tulis config ke ~/.kube/config
+      copy:
+        content: "{{ mk8s_config.stdout }}"
+        dest: "/home/{{ target_user }}/.kube/config"
+        owner: "{{ target_user }}"
+        group: "{{ target_user }}"
+        mode: "0600"
+
+    # Install Kubectl
+    - name: Ambil versi stable kubectl
+      uri:
+        url: "{{ kubectl_version }}"
+        return_content: true
+      register: kubectl_version
+
+    - name: Set variabel versi kubectl
+      set_fact:
+        kubectl_ver: "{{ kubectl_version.content | trim }}"
+
+    - name: Download binary kubectl
+      get_url:
+        url: "https://dl.k8s.io/release/{{ kubectl_ver }}/bin/linux/amd64/kubectl"
+        dest: /tmp/kubectl
+        mode: "0755"
+
+    - name: Download file checksum kubectl
+      get_url:
+        url: "https://dl.k8s.io/release/{{ kubectl_ver }}/bin/linux/amd64/kubectl.sha256"
+        dest: /tmp/kubectl.sha256
+
+    - name: Baca isi file checksum
+      slurp:
+        src: /tmp/kubectl.sha256
+      register: kubectl_checksum_file
+
+    - name: Verifikasi checksum kubectl
+      shell: |
+        echo "{{ kubectl_checksum_file.content | b64decode | trim }}  /tmp/kubectl" | sha256sum --check
+      changed_when: false
+
+    - name: Install kubectl ke /usr/local/bin
+      copy:
+        src: /tmp/kubectl
+        dest: /usr/local/bin/kubectl
+        remote_src: true
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Pastikan baris completion ada di .bashrc
+      become: false
+      lineinfile:
+        path: "/home/{{ target_user }}/.bashrc"
+        line: 'source <(kubectl completion bash)'
+        create: true
+        state: present
+
+    - name: Microk8s selesai
+      debug:
+        msg: >
+          MicroK8s dan kubectl berhasil di-install untuk user '{{ target_user }}'.
+          Silakan logout dan login kembali agar perubahan group microk8s aktif,
+          kemudian jalankan: kubectl get nodes
+
+    # Install Docker
+    - name: Install dependensi dasar
+      apt:
+        name: "{{ item }}"
+        state: present
+        update_cache: yes
+      loop:
+        - ca-certificates
+        - curl
+
+    - name: Pastikan direktori keyrings ada
+      file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: '0755'
+
+    - name: Download Docker GPG key
+      get_url:
+        url: "{{ docker_gpg_url }}"
+        dest: "{{ docker_gpg_path }}"
+        mode: '0644'
+
+    - name: Tambahkan Docker Repository
+      copy:
+        dest: /etc/apt/sources.list.d/docker.sources
+        content: |
+          Types: deb
+          URIs: {{ docker_repo_url }}
+          Suites: {{ ansible_facts['distribution_release'] }}
+          Components: stable
+          Architectures: {{ 'amd64' if ansible_facts['architecture'] == 'x86_64' else ansible_facts['architecture'] }}
+          Signed-By: {{ docker_gpg_path }}
+        mode: '0644'
+
+    - name: Update cache dan install Docker engine
+      apt:
+        name: "{{ docker_packages }}"
+        state: present
+        update_cache: yes
+
+    - name: Pastikan Docker service berjalan dan enable on boot
+      service:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Selesai
+      debug:
+        msg: "Docker terinstal"
