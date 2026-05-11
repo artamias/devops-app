@@ -1,5 +1,5 @@
 ---
-- name: Setup MicroK8s, kubectl, dan docker
+- name: Setup MicroK8s, kubectl, docker, dan ArgoCD
   hosts: all
   become: true
   vars:
@@ -171,3 +171,23 @@
     - name: Selesai
       debug:
         msg: "Docker terinstal"
+
+    # Install ArgoCD
+    # Note: Pastikan sudah terinstall koleksi kubernetes dengan perintah di bawah
+    # ansible-galaxy collection install kubernetes.core
+    - name: Membuat ArgoCD Namespace
+      kubernetes.core.k8s:
+        name: argocd
+        api_version: v1
+        kind: Namespace
+        state: present
+
+    - name: Menerapkan manifest instalasi ArgoCD
+      kubernetes.core.k8s:
+        state: present
+        src: https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+        namespace: argocd
+        apply: yes
+        server_side_apply:
+          field_manager: ansible
+          force_conflicts: yes

@@ -12,12 +12,12 @@ This project demonstrates how a traditional web application can be transformed i
 - Database: MongoDB
 
 ### Infrastructure
-- Containerization: Docker
-- Multi-container orchestration: Docker Compose
-- Reverse Proxy and Load Balancer: NGINX
+- Automation Provisioning: Ansible
+- Containerization: Docker Compose
 - Orchestration: Kubernetes (Microk8s)
-- Automation: Ansible
-- CI/CD: Jenkins (next step)
+- Reverse Proxy and Load Balancer: Ingress Controller
+- CI: Gitlab CI (next step)
+- CD: ArgoCD
 
 ---
 
