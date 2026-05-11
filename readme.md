@@ -1,6 +1,6 @@
 # Shopping App with DevOps Platform
 
-This project demonstrates how a traditional web application can be transformed into a scalable, production-ready system using Docker, Kubernetes, and infrastructure automation tools.
+This project demonstrates how a traditional web application can be transformed into a scalable, production-ready system using infrastructure as code.
 
 ---
 
