@@ -16,7 +16,7 @@ This project demonstrates how a traditional web application can be transformed i
 - Containerization: Docker Compose
 - Orchestration: Kubernetes (Microk8s)
 - Reverse Proxy and Load Balancer: Ingress Controller
-- CI: Gitlab CI (next step)
+- CI: Jenkins (next step)
 - CD: ArgoCD
 
 ---

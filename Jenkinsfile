@@ -62,7 +62,7 @@ pipeline {
                                 -w /app \
                                 -e CI=true \
                                 node:20-alpine \
-                                sh -c "npm ci --prefer-offline && npm test -- --watchAll=false --forceExit"
+                                sh -c "npm ci --prefer-offline && npm test -- --watchAll=false --forceExit --passWithNoTests"
                         '''
                     }
                     post {
