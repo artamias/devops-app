@@ -1,34 +1,18 @@
 import path from 'path';
 import express from 'express';
 import multer from 'multer';
+import { minioClient, BUCKET_NAME } from '../config/minio.js';
 
 const router = express.Router();
 
-// path absolute refers to env
-const uploadDir =
-  process.env.NODE_ENV === 'production'
-    ? '/var/data/uploads'
-    : path.resolve('uploads');
-
-const storage = multer.diskStorage({
-  destination(req, file, cb) {
-    cb(null, uploadDir);
-  },
-  filename(req, file, cb) {
-    cb(
-      null,
-      `${file.fieldname}-${Date.now()}${path.extname(file.originalname)}`
-    );
-  },
-});
+// Use memoryStorage
+const storage = multer.memoryStorage();
 
 function fileFilter(req, file, cb) {
   const filetypes = /jpe?g|png|webp/;
   const mimetypes = /image\/jpe?g|image\/png|image\/webp/;
-
   const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
   const mimetype = mimetypes.test(file.mimetype);
-
   if (extname && mimetype) {
     cb(null, true);
   } else {
@@ -38,15 +22,33 @@ function fileFilter(req, file, cb) {
 
 const upload = multer({ storage, fileFilter });
 
-router.post('/', upload.single('image'), (req, res) => {
-  if (req.file) {
-    //return url path
+router.post('/', upload.single('image'), async (req, res) => {
+  if (!req.file) {
+    return res.status(400).send({ message: 'No image file provided' });
+  };
+
+  try {
+    const filename = `${req.file.fieldname}-${Date.now()}${path.extname(req.file.originalname)}`;
+    const metaData = { 'Content-Type': req.file.mimetype };
+
+    await minioClient.putObject(
+      BUCKET_NAME,
+      filename,
+      req.file.buffer,
+      req.file.size,
+      metaData
+    );
+
+    // Return URL
+    const imageUrl = `${process.env.MINIO_PUBLIC_URL}/${BUCKET_NAME}/${filename}`;
+
     res.status(200).send({
       message: 'Image uploaded successfully',
-      image: `/uploads/${req.file.filename}`,
+      image: imageUrl,
     });
-  } else {
-    res.status(400).send({ message: 'No image file provided' });
+  } catch (err) {
+    console.error('MinIO upload error:', err);
+    res.status(500).send({ message: 'Upload failed', error: err.message });
   }
 });
 

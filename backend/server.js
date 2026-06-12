@@ -12,10 +12,12 @@ import userRoutes from './routes/userRoutes.js';
 import orderRoutes from './routes/orderRoutes.js';
 import uploadRoutes from './routes/uploadRoutes.js';
 import { notFound, errorHandler } from './middleware/errorMiddleware.js';
+import { ensureBucket } from './config/minio.js';
 
 const port = process.env.PORT || 5000;
 
 connectDB();
+await ensureBucket();
 
 const app = express();
 
@@ -57,20 +59,15 @@ if (!fs.existsSync(uploadDir)) {
   console.log(`Created upload directory: ${uploadDir}`);
 }
 
+// MinIO config.
 if (process.env.NODE_ENV === 'production') {
   const __dirname = path.resolve();
-  app.use('/uploads', express.static('/var/data/uploads'));
   app.use(express.static(path.join(__dirname, '/frontend/build')));
-
   app.get('*', (req, res) =>
     res.sendFile(path.resolve(__dirname, 'frontend', 'build', 'index.html'))
   );
 } else {
-  const __dirname = path.resolve();
-  app.use('/uploads', express.static(path.join(__dirname, '/uploads')));
-  app.get('/', (req, res) => {
-    res.send('API is running....');
-  });
+  app.get('/', (req, res) => res.send('API is running....'));
 }
 
 app.use(notFound);
